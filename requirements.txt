@@ -4,4 +4,4 @@ gunicorn==22.0.0
 pandas==2.2.2
 requests==2.32.3
 beautifulsoup4==4.12.3
-GoogleNews==1.7.1
+GoogleNews==1.6.15
