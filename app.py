@@ -38,6 +38,11 @@ def get_article_image(url):
     return None
 
 # --- Root endpoint that now redirects ---
+
+# --- Health Check Endpoint ---
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
 @app.get("/")
 def read_root():
     # This will automatically redirect anyone visiting the root URL
@@ -81,4 +86,6 @@ def get_indian_news():
         return all_news_results
 
     except Exception as e:
+        import traceback
+        print("Error:", traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
