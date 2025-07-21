@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import RedirectResponse # <--- IMPORT THIS
+from fastapi.middleware.cors import CORSMiddleware # Import CORS middleware
+from fastapi.responses import RedirectResponse
 from datetime import datetime, timedelta
 import pandas as pd
 import requests
@@ -9,6 +10,23 @@ import time
 import random
 
 app = FastAPI()
+
+# --- CORS Configuration ---
+# This is the crucial part to fix the "Failed to fetch" error.
+# It allows your React frontend to make requests to this backend.
+origins = [
+    "*",  # Allows all origins. For production, you might want to restrict this
+          # to your actual frontend domain.
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"], # Allows all methods (GET, POST, etc.)
+    allow_headers=["*"], # Allows all headers
+)
+
 
 # --- Cache Setup ---
 news_cache = None
@@ -38,15 +56,8 @@ def get_article_image(url):
     return None
 
 # --- Root endpoint that now redirects ---
-
-# --- Health Check Endpoint ---
-@app.get("/health")
-def health_check():
-    return {"status": "ok"}
 @app.get("/")
 def read_root():
-    # This will automatically redirect anyone visiting the root URL
-    # to the /api/indian-news endpoint.
     return RedirectResponse(url="/api/indian-news")
 
 # --- API Endpoint with Caching Logic ---
@@ -86,6 +97,4 @@ def get_indian_news():
         return all_news_results
 
     except Exception as e:
-        import traceback
-        print("Error:", traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
