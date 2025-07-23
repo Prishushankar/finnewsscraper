@@ -1,37 +1,67 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware # Import CORS middleware
-from fastapi.responses import RedirectResponse
-from datetime import datetime, timedelta
-import pandas as pd
+# --- Part 0: Imports (with new additions) ---
+import os
 import requests
+from apscheduler.schedulers.background import BackgroundScheduler
 from bs4 import BeautifulSoup
+from datetime import datetime, timedelta
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from GoogleNews import GoogleNews
-import time
+import pandas as pd
 import random
+import time
 
 app = FastAPI()
 
+# --- Part 1: Self-Pinging Logic ---
+def ping_self():
+    """
+    Sends a GET request to the root URL of the app to keep it alive.
+    """
+    try:
+        # Render provides the `RENDER_EXTERNAL_URL` environment variable
+        app_url = os.environ.get("RENDER_EXTERNAL_URL")
+        if app_url:
+            print(f"Pinging {app_url} to keep alive...")
+            requests.get(app_url, timeout=10)
+            print("Ping successful.")
+        else:
+            # This is a fallback for local testing or other environments
+            print("RENDER_EXTERNAL_URL not set. Cannot ping self.")
+    except requests.exceptions.RequestException as e:
+        print(f"Failed to ping self: {e}")
+
+@app.on_event("startup")
+def startup_event():
+    """
+    Initializes the scheduler and adds the ping job when the app starts.
+    """
+    scheduler = BackgroundScheduler()
+    # Ping every 14 minutes, safely inside Render's 15-minute timeout
+    scheduler.add_job(ping_self, 'interval', minutes=14)
+    scheduler.start()
+    print("Scheduler started. App will be pinged every 14 minutes.")
+# --- End of Self-Pinging Logic ---
+
+
 # --- CORS Configuration ---
-# This is the crucial part to fix the "Failed to fetch" error.
-# It allows your React frontend to make requests to this backend.
 origins = [
-    "*",  # Allows all origins. For production, you might want to restrict this
-          # to your actual frontend domain.
+    "*",  # Allows all origins. For production, restrict this to your frontend domain.
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"], # Allows all methods (GET, POST, etc.)
-    allow_headers=["*"], # Allows all headers
+    allow_methods=["*"],  # Allows all methods (GET, POST, etc.)
+    allow_headers=["*"],  # Allows all headers
 )
-
 
 # --- Cache Setup ---
 news_cache = None
 cache_timestamp = None
-CACHE_DURATION = timedelta(minutes=30) 
+CACHE_DURATION = timedelta(minutes=30)
 
 # --- Helper Function to Scrape Images ---
 def get_article_image(url):
